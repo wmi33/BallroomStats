@@ -6,44 +6,7 @@
 from urllib.request import urlopen
 import re
 import classes
-import datetime
-
-def monthToInt(month):
-    lowerMonth = month.lower()
-    if lowerMonth[0] == 'j':
-        if lowerMonth[1] == 'a':
-            return 1
-        elif lowerMonth[2] == 'n':
-            return 6
-        else:
-            return 7
-    elif lowerMonth[0] == 'f':
-        return 2
-    elif lowerMonth[0] == 'm':
-        if lowerMonth[2] == 'r':
-            return 3
-        else:
-            return 5
-    elif lowerMonth[0] == 'a':
-        if lowerMonth[1] == 'p':
-            return 4
-        else:
-            return 8
-    elif lowerMonth[0] == 's':
-        return 9
-    elif lowerMonth[0] == 'o':
-        return 10
-    elif lowerMonth[0] == 'n':
-        return 11
-    else:
-        return 12
-
-def cleanDate(webDate): #The dates on the website have ranges and commas that need to be taken out to convert to date objects
-    formattedDate = re.sub("-.*?,", "", webDate)
-    formattedDate = formattedDate.replace(',', '')
-    data = formattedDate.split()
-    finalDate = datetime.datetime(int(data[2]), monthToInt(data[0]), int(data[1]))
-    return finalDate
+import helper
 
 def getWebPage(url):
     try:
@@ -74,68 +37,141 @@ def scrapeRecentComps(url, filename):
         cidList.append(int(string[4:-1]))
     #Get comp Information
     compNames = re.findall("<span class=\"label\">.*?</div>", recentCompsList)
-    compList = {}
     index = 0
+    recentCompFile = open(filename, "w")
     while index < len(compNames):
         compNames[index] = re.sub("<br>", "--", compNames[index])
         compNames[index] = re.sub("<.*?>", "", compNames[index])
         compInfo = compNames[index].split("--")
-        compList[cidList[index]] = classes.Comp(compInfo[0].strip(), cleanDate(compInfo[1]), compInfo[2])
+        recentCompFile.write(str(cidList[index]) + ' | ' + compInfo[0].strip() + ' | ' + helper.cleanDate(compInfo[1]).strftime("%x") + ' | ' + compInfo[2] +'\n')
         index += 1
-    recentCompFile = open(filename, "w")
-    for cid in cidList:
-        compString = str(cid) + ' | ' + compList[cid].name + ' | ' + compList[cid].date.strftime("%x") + ' | ' + compList[cid].location +'\n'
-        recentCompFile.write(compString)
     recentCompFile.close()
-    return compList
 
+#Grabs all the events that match requirements and their eid's so we can traverse the website and check the results of each event
+#args are strings that act as filters. If you don't want something like "Rookie-Vet" add "!Rookie-Vet" as an arg
+
+def scrapeComp(url, cid, filename, *argv):
+    #open webpage
+    file = open("compPage", "r")
+    text = file.read()
+    file.close()
+    eventData = text[text.find("./results"):text.rfind("<!-- Footer -->")]
+    allEvents = re.findall("eid=.*?</a>", eventData)
+    eidList = []
+    
+    i = 0
+    while i < len(allEvents):
+        flag = False
+        for arg in argv:
+            if type(arg) != str:
+                print("Error scrapeComp(): args must be of type str")
+                return
+            else:
+                if arg[0] == '!':
+                    temp = arg[1:] #Cutting off the not operator
+                    flag = temp in allEvents[i]
+                else:
+                    flag = arg not in allEvents[i]
+                if flag:
+                    allEvents.pop(i)
+                    i -= 1
+                    break
+        if not flag:
+            eid = int(allEvents[i][allEvents[i].find("eid=") + len("eid="): allEvents[i].find('\"')])
+            eidList.append(eid) 
+        i += 1
+    file = open(filename, "w")
+    for eid in eidList:
+        file.write(scrapeEvent(url, cid, eid).toString())
+    file.close()
+
+#Used by scrapeEvent() to get dictionary of entrantID's with corresponding lead and follow names
+def getCoupleNames(pageString):
+    coupleData = pageString[pageString.find("var dancers = "):pageString.rfind("followeraffiliation")]
+    eidDict = {}
+    index = 0
+    eidValues = re.findall(r'entrantid.*?,', coupleData)
+    leaderFnames = re.findall(r'leaderfname.*?,', coupleData)
+    leaderLnames = re.findall(r'leaderlname.*?,', coupleData)
+    followerFnames = re.findall(r'followerfname.*?,', coupleData)
+    followerLnames = re.findall(r'followerlname.*?,', coupleData)
+    for eid in eidValues:
+        intEid = int(eid[eid.find(':') + 3: eid.rfind('\\\"')])
+        lFname = leaderFnames[index]
+        lLname = leaderLnames[index]
+        fFname = followerFnames[index]
+        fLname = followerLnames[index]
+        leaderName = lFname[lFname.find(':') + 3: lFname.rfind('\\\"')] + " " + lLname[lLname.find(':') + 3: lLname.rfind('\\\"')]
+        followerName = fFname[fFname.find(':') + 3: fFname.rfind('\\\"')] + " " + fLname[fLname.find(':') + 3: fLname.rfind('\\\"')]
+        eidDict[intEid] = [leaderName, followerName]
+        index += 1
+    return eidDict
+#Used by scapeEvent() to get dictionary of entrantID: [placement, cut]
 def getCoupleOrder(pageString):
+    #cut is the name for the subevents -> final, semi, quarter, ...
     data = pageString[pageString.find("partnershiporder"):pageString.find("Final")]
+    cutNames = ["Final"]
+    designations = re.findall("designation\":\".*?\"", data)
+    index = len(designations) - 1
+    while index >= 0:
+        currDes = designations[index]
+        currDes = currDes[currDes.find(":\"") + 2:currDes.rfind("\"")]
+        cutNames.append(currDes)
+        index -= 1
     orders = re.findall('partnershiporder.*?]', data)
     index = 0
-    comma = ','
     rank = {}
     placement = 1
     for order in orders:
         orders[index] = order[order.find("[") + 1:order.find("]")]
         index+=1
-    temp = orders[0]
-    orders[0] = orders[len(orders) - 1 ]
-    orders[len(orders) - 1] = temp
-    joinedOrder = comma.join(orders)
-    idList = joinedOrder.split(',')
-    while len(idList) > 0:
-        entrantID = int(idList[0])
-        idList.pop(0)
-        if entrantID in rank:
-            continue
-        else:
-            rank[entrantID] = placement
-            placement += 1
-    #Still need to convert from entrantID to AID
+    
+    cutNum = len(orders) - 1
+    cutsChecked = 0
+    while cutNum >= 0:
+        index = 0
+        cut = orders[cutNum]
+        idList = cut.split(',')
+        while index < len(idList):
+            if int(idList[index]) not in rank:
+                rank[int(idList[index])] = [placement, cutNames[cutsChecked]]
+                placement += 1
+                
+            index += 1
+        cutNum -= 1
+        cutsChecked += 1
+    #Still need to convert from entrantID to names
     return rank
 
 #There is a format assumption on the name of the event
 # style1 and style2 are two words that makeup the name of the style EX: Int. Latin
 #Amateur <age> <level> <style1> <style2> <dance> 
-def scrapeEvent(url, cid):
-    print(url)
-    #Open webpage
-    page = open("eventPage", "r")
-    pageString = page.read()
-    page.close()
-    #Interacting with data
+def scrapeEvent(url, cid, eid):
+    #open and get webpage
+    pageString = getWebPage(url + "/results.php?cid=" + str(cid) + "&eid=" + str(eid))
+    #Cutting excess information
     startIndex = pageString.find("Results for ") + len("Results for ")
     endIndex = pageString.find('<', startIndex)
+    #Pulling event title
     titleName = pageString[startIndex:endIndex]
     titleTokens = titleName.split()
+    #Getting results
     results = getCoupleOrder(pageString)
+    eidToName = getCoupleNames(pageString)
+    coupleResults = []
+    #Creating entries for event object
+    for key in results.keys():
+        couple = eidToName[key]
+        entry = classes.Entry(couple[0], couple[1], results[key][0], results[key][1])
+        coupleResults.append(entry)
 
-    return classes.Event(titleTokens[5], titleTokens[3] + ' ' + titleTokens[4], titleTokens[3], titleTokens[2], len(results), cid)
+    return classes.Event(eid, titleTokens[0], titleTokens[1], titleTokens[2], titleTokens[3] + ' ' + titleTokens[4], titleTokens[5],coupleResults, cid)
 
 if __name__ == '__main__':
-    baseURL = "https://ballroomcompexpress.com/results.php?cid=113&eid=4"
+    baseURL = "https://ballroomcompexpress.com"
 
     #This is using an already loaded webpage to not constantly make requests to webserver
     #compList = scrapeRecentComps("url", "recentComps.txt")
-    print(scrapeEvent("url", 10).entries)
+    #scrapeRecentComps("url", "recentComps.txt")
+    #print(scrapeEvent(baseURL, 67, 174).toString())
+    scrapeComp(baseURL,103, "comp_results.txt", "Amateur", "Adult", "Silver", "!International")
