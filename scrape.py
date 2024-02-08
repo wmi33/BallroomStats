@@ -1,5 +1,5 @@
 #Will Miller
-#Script to read data from BallroomCompExpress and update database
+#Script to read Amateur competitor data from BallroomCompExpress and update database
 
 #Where are we now: Can parse html fairly well. I can pull details about previous comps to store in db.
 #Where are we going: Setup local db, figure out how to input competitions into db with their cid.
@@ -89,13 +89,53 @@ def scrapeRecentComps(url, filename):
     recentCompFile.close()
     return compList
 
+def getCoupleOrder(pageString):
+    data = pageString[pageString.find("partnershiporder"):pageString.find("Final")]
+    orders = re.findall('partnershiporder.*?]', data)
+    index = 0
+    comma = ','
+    rank = {}
+    placement = 1
+    for order in orders:
+        orders[index] = order[order.find("[") + 1:order.find("]")]
+        index+=1
+    temp = orders[0]
+    orders[0] = orders[len(orders) - 1 ]
+    orders[len(orders) - 1] = temp
+    joinedOrder = comma.join(orders)
+    idList = joinedOrder.split(',')
+    while len(idList) > 0:
+        entrantID = int(idList[0])
+        idList.pop(0)
+        if entrantID in rank:
+            continue
+        else:
+            rank[entrantID] = placement
+            placement += 1
+    #Still need to convert from entrantID to AID
+    return rank
+
+#There is a format assumption on the name of the event
+# style1 and style2 are two words that makeup the name of the style EX: Int. Latin
+#Amateur <age> <level> <style1> <style2> <dance> 
+def scrapeEvent(url, cid):
+    print(url)
+    #Open webpage
+    page = open("eventPage", "r")
+    pageString = page.read()
+    page.close()
+    #Interacting with data
+    startIndex = pageString.find("Results for ") + len("Results for ")
+    endIndex = pageString.find('<', startIndex)
+    titleName = pageString[startIndex:endIndex]
+    titleTokens = titleName.split()
+    results = getCoupleOrder(pageString)
+
+    return classes.Event(titleTokens[5], titleTokens[3] + ' ' + titleTokens[4], titleTokens[3], titleTokens[2], len(results), cid)
+
 if __name__ == '__main__':
-    baseURL = "https://www.ballroomcompexpress.com"
+    baseURL = "https://ballroomcompexpress.com/results.php?cid=113&eid=4"
 
     #This is using an already loaded webpage to not constantly make requests to webserver
     #compList = scrapeRecentComps("url", "recentComps.txt")
-    print(getWebPage("https://ballroomcompexpress.com/results.php?cid=121&eid=26"))
-    
-    #testFile = open("basePage", "w")
-    #testFile.write(html)
-    #testFile.close()
+    print(scrapeEvent("url", 10).entries)

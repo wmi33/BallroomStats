@@ -15,11 +15,10 @@ class Event:
         self.cid = cid
 
 class Entry:
-    def __init__(self, eid: int, aidL: int, aidF: int, cid: int, placement: int):
+    def __init__(self, eid: int, aidL: int, aidF: int, placement: int):
         self.eid = eid 
         self.aidF = aidF #Follow's Account ID
         self.aidL = aidL #Lead's Account ID
-        self.cid = cid
         self.placement = placement
 
 class Dancer:
