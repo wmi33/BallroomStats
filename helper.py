@@ -1,5 +1,15 @@
 import re
 import datetime
+from urllib.request import urlopen
+
+def getWebPage(url):
+    try:
+        response = urlopen(url)
+    except Exception as ex:
+        return ex
+    else:
+        body = response.read().decode("utf-8")
+    return body
 def monthToInt(month):
     lowerMonth = month.lower()
     if lowerMonth[0] == 'j':
@@ -37,3 +47,71 @@ def cleanDate(webDate):
     data = formattedDate.split()
     finalDate = datetime.datetime(int(data[2]), monthToInt(data[0]), int(data[1]))
     return finalDate
+
+#Used by scrapeEvent() to get dictionary of entrantID's with corresponding lead and follow names
+def getCoupleNames(pageString):
+    coupleData = pageString[pageString.find("var dancers = "):pageString.rfind("followeraffiliation")]
+    eidDict = {}
+    index = 0
+    eidValues = re.findall(r'entrantid.*?,', coupleData)
+    leaderFnames = re.findall(r'leaderfname.*?,', coupleData)
+    leaderLnames = re.findall(r'leaderlname.*?,', coupleData)
+    followerFnames = re.findall(r'followerfname.*?,', coupleData)
+    followerLnames = re.findall(r'followerlname.*?,', coupleData)
+    for eid in eidValues:
+        intEid = int(eid[eid.find(':') + 3: eid.rfind('\\\"')])
+        lFname = leaderFnames[index]
+        lLname = leaderLnames[index]
+        fFname = followerFnames[index]
+        fLname = followerLnames[index]
+        leaderName = lFname[lFname.find(':') + 3: lFname.rfind('\\\"')].strip() + " " + lLname[lLname.find(':') + 3: lLname.rfind('\\\"')].strip()
+        followerName = fFname[fFname.find(':') + 3: fFname.rfind('\\\"')].strip() + " " + fLname[fLname.find(':') + 3: fLname.rfind('\\\"')].strip()
+        eidDict[intEid] = [leaderName, followerName]
+        index += 1
+    return eidDict
+
+#Used by scapeEvent() to get dictionary of entrantID: [placement, cut]
+def getCoupleOrder(pageString):
+    #cut is the name for the subevents -> final, semi, quarter, ...
+    data = pageString[pageString.find("partnershiporder"):pageString.find("Final")]
+    cutNames = ["Final"]
+    designations = re.findall("designation\":\".*?\"", data)
+    index = len(designations) - 1
+    while index >= 0:
+        currDes = designations[index]
+        currDes = currDes[currDes.find(":\"") + 2:currDes.rfind("\"")]
+        cutNames.append(currDes)
+        index -= 1
+    orders = re.findall('partnershiporder.*?]', data)
+    index = 0
+    rank = {}
+    placement = 1
+    for order in orders:
+        orders[index] = order[order.find("[") + 1:order.find("]")]
+        index+=1
+    
+    cutNum = len(orders) - 1
+    cutsChecked = 0
+    while cutNum >= 0:
+        index = 0
+        cut = orders[cutNum]
+        idList = cut.split(',')
+        while index < len(idList):
+            if int(idList[index]) not in rank:
+                rank[int(idList[index])] = [placement, cutNames[cutsChecked]]
+                placement += 1
+                
+            index += 1
+        cutNum -= 1
+        cutsChecked += 1
+    return rank
+
+def getURL(cid=None, eid=None):
+    baseURL = "http://ballroomcompexpress.com"
+    if cid == None:
+        return baseURL
+    elif(eid == None):
+        return baseURL + "/results.php?cid=" + str(cid)
+    else:
+        return baseURL + "/results.php?cid=" + str(cid) + "&eid=" + str(eid)
+    
