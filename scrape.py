@@ -14,6 +14,9 @@ import time
 def scrapeRecentComps(filename):
     #Open webpage and get string text
     pageString = helper.getWebPage(helper.getURL())
+    if type(pageString) != str:
+        print("Error scrapeRecentComps(): " + helper.getURL()+ " failed to open")
+        return None
     #Get all the text involving only the comps that have already occurred
     startIndex = pageString.find("<h2>Recent Comps</h2>") + len("<h2>Recent Comps</h2>")
     endIndex = pageString.find("</div></div>", startIndex)
@@ -40,12 +43,15 @@ def scrapeRecentComps(filename):
 
 def scrapeComp(cid, fileID, *argv):
     #open webpage
-    text = helper.getWebPage(helper.getURL(cid))
+    pageString = helper.getWebPage(helper.getURL(cid))
+    if type(pageString) != str:
+        print("Error scrapeComp(): " + helper.getURL(cid)+ " failed to open")
+        return None
     #Extact useful data
-    eventData = text[text.find("./results"):text.rfind("<!-- Footer -->")]
+    eventData = pageString[pageString.find("./results"):pageString.rfind("<!-- Footer -->")]
     allEvents = re.findall("eid=.*?</a>", eventData)
     eidList = []
-    compName = text[text.find("<h1>") + len("<h1>Results for "):text.find("</h1>")]
+    compName = pageString[pageString.find("<h1>") + len("<h1>Results for "):pageString.find("</h1>")]
     filename = compName.replace(" ", "_") + fileID +".txt"
     
     i = 0
@@ -104,6 +110,9 @@ def getCompCid(compName):
 def scrapeEvent(url, cid, eid):
     #open and get webpage
     pageString = helper.getWebPage(helper.getURL(cid, eid))
+    if type(pageString) != str:
+        print("Error scrapeEvent(): " + helper.getURL(cid, eid)+ " failed to open")
+        return None
     #Cutting excess information
     startIndex = pageString.find("Results for ") + len("Results for ")
     endIndex = pageString.find('<', startIndex)
@@ -122,34 +131,85 @@ def scrapeEvent(url, cid, eid):
 
     return classes.Event(eid, titleTokens[0], titleTokens[1], titleTokens[2], titleTokens[3] + ' ' + titleTokens[4], titleTokens[5],coupleResults, cid)
 
+#TODO: Add the partner as part of the information given about a person's results
 def getDancerPlacement(cid, eid, name, isLead=True):
     pageString = helper.getWebPage(helper.getURL(cid, eid))
+    if type(pageString) != str:
+        print("Error getDancerPlacement(): " + helper.getURL(cid, eid)+ " failed to open")
+        return None
     #Cutting excess information
     startIndex = pageString.find("Results for ") + len("Results for ")
     endIndex = pageString.find('<', startIndex)
     #Pulling event title
     titleName = pageString[startIndex:endIndex]
-
-    names = helper.getCoupleNames(pageString)
-    orders = helper.getCoupleOrder(pageString)
-    index = 0
-    if not isLead:
-        index = 1
-    for key in orders:
-        if names[key][index] == name:
-            return [titleName, orders[key][0], orders[key][1]]
-    return None
+    #search through pageString to find a matching name with entrantID
+    #entrantIndex serves as a flag that there are more entrants
+    entrantIndex = pageString.find("entrantid")
+    #Search index keeps track of where in the page we are so we do not keep traversing through old info
+    searchIndex = entrantIndex + len("entrantid\\\":\\\"")
+    fName = None
+    lName = None
+    entrantID = None
+    foundFlag = False
+    while entrantIndex != -1:
+        entrantID = int(pageString[searchIndex:pageString.find("\\", searchIndex)])
+        searchIndex = pageString.find("\\", searchIndex)
+        if isLead:
+            startIndex = pageString.find("leaderfname", searchIndex) + len("leaderfname\\\":\\\"")
+            endIndex = pageString.find("\\\"", startIndex)
+            searchIndex = endIndex
+            fName = pageString[startIndex:endIndex].strip()
+            startIndex = pageString.find("leaderlname", searchIndex) + len("leaderlname\\\":\\\"")
+            endIndex = pageString.find("\\\"", startIndex)
+            searchIndex = endIndex
+            lName = pageString[startIndex:endIndex].strip()
+        else:
+            startIndex = pageString.find("followerfname", searchIndex) + len("followerfname\\\":\\\"")
+            endIndex = pageString.find("\\\"", startIndex)
+            searchIndex = endIndex
+            fName = pageString[startIndex:endIndex].strip()
+            startIndex = pageString.find("followerlname", searchIndex) + len("followerlname\\\":\\\"")
+            endIndex = pageString.find("\\\"", startIndex)
+            searchIndex = endIndex
+            lName = pageString[startIndex:endIndex].strip()
+        if name == fName + " " + lName:
+            foundFlag = True
+            break   
+        entrantIndex =  pageString.find("entrantid\\\":\\\"", endIndex)
+        searchIndex = entrantIndex + len("entrantid\\\":\\\"")
+    if not foundFlag:
+        print("getDancerPlacement(): "+name+" not found for eid=" + str(eid))
+        return None
+    else:
+        orders = helper.getCoupleOrder(pageString)
+        print(titleName + " " + str(orders[entrantID][0]) + "/" +str(len(orders)) + "(" +orders[entrantID][1] + ")" )
+        return [titleName, orders[entrantID][0], len(orders), orders[entrantID][1]]
         
-def getDancerCompStats(cid, name, isLead=True): # This is bugged
+def getDancerCompStats(cid, name, isLead=True, fileName=None):
     pageString = helper.getWebPage(helper.getURL(cid))
+    if type(pageString) != str:
+        print("Error getDancerCompStats(): " + helper.getURL(cid)+ " failed to open")
+        return None
     eventData = pageString[pageString.find("./results"):pageString.rfind("<!-- Footer -->")]
     allEvents = re.findall("eid=.*?</a>", eventData)
+    compName = pageString[pageString.find("<h1>") + len("<h1>Results for "):pageString.find("</h1>")]
+    file = None
+    if fileName != None:
+        file = open(fileName, "w")
+        file.write(name + "'s Results at " + compName + '\n')
+    else:
+        print(name + "'s Results at " + compName)
     for event in allEvents:
         eid = int(event[event.find("eid=") + len("eid="): event.find('\"')])
+        time.sleep(.25) #Slowing down requests to be safe from overloading website and getting ip banned
         placement = getDancerPlacement(cid, eid, name, isLead)
         if placement != None:
-            print(placement[0] + "| Place:" + str(placement[1]) + "(" + placement[2] + ")")
+            if fileName == None:
+                print(placement[0] + "| Place:" + str(placement[1]) +"/"+str(placement[2]) + "(" + placement[3] + ")")
+            else:
+                file.write(placement[0] + "| Place:" + str(placement[1]) +"/"+str(placement[2]) + "(" + placement[3] + ")\n")
+    if fileName != None:
+        file.close()
+
 if __name__ == '__main__':
-    
-    #scrapeComp(113, "", "Amateur", "Adult")
-    print(getDancerCompStats(67, "Jefferson Lindsay"))
+    print("Hello")
