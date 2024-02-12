@@ -41,7 +41,7 @@ def scrapeRecentComps(filename):
 #Grabs all the events that match requirements and their eid's so we can traverse the website and check the results of each event
 #args are strings that act as filters. If you don't want something like "Rookie-Vet" add "!Rookie-Vet" as an arg
 
-def scrapeComp(cid, fileID, *argv):
+def scrapeComp(cid, fileName, *argv):
     #open webpage
     pageString = helper.getWebPage(helper.getURL(cid))
     if type(pageString) != str:
@@ -52,7 +52,6 @@ def scrapeComp(cid, fileID, *argv):
     allEvents = re.findall("eid=.*?</a>", eventData)
     eidList = []
     compName = pageString[pageString.find("<h1>") + len("<h1>Results for "):pageString.find("</h1>")]
-    filename = compName.replace(" ", "_") + fileID +".txt"
     
     i = 0
     while i < len(allEvents):
@@ -75,8 +74,8 @@ def scrapeComp(cid, fileID, *argv):
             eid = int(allEvents[i][allEvents[i].find("eid=") + len("eid="): allEvents[i].find('\"')])
             eidList.append(eid) 
         i += 1
-    file = open(filename, "w")
-    print("Writing to File: " + filename)
+    file = open(fileName, "w")
+    print("Writing to File: " + fileName)
     file.write(compName + '\n')
     remaining = len(eidList)
     print("Total Events: " + str(remaining))
@@ -107,7 +106,7 @@ def getCompCid(compName):
             return int(data[0])
     #TODO: Add functionality that if the name cannot be found to update the comp file with new comps
     
-def scrapeEvent(url, cid, eid):
+def scrapeEvent( cid, eid):
     #open and get webpage
     pageString = helper.getWebPage(helper.getURL(cid, eid))
     if type(pageString) != str:
@@ -197,6 +196,7 @@ def getDancerCompStats(cid, name, isLead=True, fileName=None):
     if fileName != None:
         file = open(fileName, "w")
         file.write(name + "'s Results at " + compName + '\n')
+        file.write("Event Name, Placement, # of Couples, Cut\n")
     else:
         print(name + "'s Results at " + compName)
     for event in allEvents:
@@ -207,9 +207,11 @@ def getDancerCompStats(cid, name, isLead=True, fileName=None):
             if fileName == None:
                 print(placement[0] + "| Place:" + str(placement[1]) +"/"+str(placement[2]) + "(" + placement[3] + ")")
             else:
-                file.write(placement[0] + "| Place:" + str(placement[1]) +"/"+str(placement[2]) + "(" + placement[3] + ")\n")
+                #file.write(placement[0] + "| Place:" + str(placement[1]) +"/"+str(placement[2]) + "(" + placement[3] + ")\n")
+                file.write(placement[0] + "," + str(placement[1]) +","+str(placement[2]) + ","+ placement[3] + "\n")
     if fileName != None:
         file.close()
 
 if __name__ == '__main__':
-    print("Hello")
+    #getDancerCompStats(121, "Emilee Gruszeczki", isLead = False, fileName="emCO.csv")
+    scrapeComp(100, "cfc_nc_s.csv", "Amateur", "Adult", "!Gold", "!Bronze", "!Novice")

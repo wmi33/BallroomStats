@@ -31,9 +31,10 @@ class Event:
         return self.category + " " + self.age + " " + self.level + " " + self.style + " " + self.dances
     def toString(self):
         result = self.title() + '\n'
-        result += "# of couples: " + str(len(self.entries)) + '\n'
+        result += "# of couples," + str(len(self.entries)) + '\n'
+        result += "Placement, Lead Name, Follow Name, Cut\n"
         for ent in self.entries:
-            result += "  " + ent.toString() + '\n'
+            result += ent.toString() + '\n'
 
         return result
 
@@ -44,7 +45,7 @@ class Entry:
         self.placement = placement
         self.cut = cut
     def toString(self):
-        return str(self.placement) + ". " + "lead: " + self.lName + ", follow: " + self.fName  + " (" + self.cut + ")"
+        return str(self.placement) + "," + self.lName + "," + self.fName  + "," + self.cut 
 
 class Dancer:
     def __init__(self, fname: str, lname: str, location: str): #Key in dictionary is AID
