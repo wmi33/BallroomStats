@@ -1,8 +1,5 @@
 #Will Miller
-#Script to read Amateur competitor data from BallroomCompExpress and update database
-
-#Where are we now: Can parse html fairly well. I can pull details about previous comps to store in db.
-#Where are we going: Setup local db, figure out how to input competitions into db with their cid.
+#Script to read Amateur competitor data from BallroomCompExpress and calculate placements
 
 import re
 import classes
@@ -127,7 +124,7 @@ def scrapeEvent( cid, eid):
         couple = eidToName[key]
         entry = classes.Entry(couple[0], couple[1], results[key][0], results[key][1])
         coupleResults.append(entry)
-
+    print(titleTokens)
     return classes.Event(eid, titleTokens[0], titleTokens[1], titleTokens[2], titleTokens[3] + ' ' + titleTokens[4], titleTokens[5],coupleResults, cid)
 
 #TODO: Add the partner as part of the information given about a person's results
@@ -136,11 +133,30 @@ def getDancerPlacement(cid, eid, name, isLead=True):
     if type(pageString) != str:
         print("Error getDancerPlacement(): " + helper.getURL(cid, eid)+ " failed to open")
         return None
+    if isLead:
+        dancerName = name.split()
+        searchFirst = "leaderfname\\\":\\\"" + dancerName[0]
+        searchLast = "leaderlname\\\":\\\"" + dancerName[1]
+        if pageString.find(searchLast) ==  -1 or pageString.find(searchFirst) == -1:
+            print("getDancerPlacement(): "+name+" not found for eid=" + str(eid))
+            return None
+    else:
+        dancerName = name.split()
+        searchFirst = "followerfname\\\":\\\"" + dancerName[0]
+        searchLast = "followerlname\\\":\\\"" + dancerName[1]
+        if pageString.find() == -1 or pageString.find():
+            print("getDancerPlacement(): "+name+" not found for eid=" + str(eid))
+            return None
+
     #Cutting excess information
     startIndex = pageString.find("Results for ") + len("Results for ")
     endIndex = pageString.find('<', startIndex)
     #Pulling event title
-    titleName = pageString[startIndex:endIndex]
+    title = pageString[startIndex:endIndex]
+    titleNameSplit = title.split()
+    titleName = titleNameSplit[0]
+    for i in range(1, len(titleNameSplit)):
+        titleName = titleName + " " + titleNameSplit[i]
     #search through pageString to find a matching name with entrantID
     #entrantIndex serves as a flag that there are more entrants
     entrantIndex = pageString.find("entrantid")
@@ -176,13 +192,9 @@ def getDancerPlacement(cid, eid, name, isLead=True):
             break   
         entrantIndex =  pageString.find("entrantid\\\":\\\"", endIndex)
         searchIndex = entrantIndex + len("entrantid\\\":\\\"")
-    if not foundFlag:
-        print("getDancerPlacement(): "+name+" not found for eid=" + str(eid))
-        return None
-    else:
-        orders = helper.getCoupleOrder(pageString)
-        print(titleName + " " + str(orders[entrantID][0]) + "/" +str(len(orders)) + "(" +orders[entrantID][1] + ")" )
-        return [titleName, orders[entrantID][0], len(orders), orders[entrantID][1]]
+    couplePlacementInfo = helper.findPlacement(pageString, entrantID)
+    print(titleName + " " + str(couplePlacementInfo[0]) + "/" +str(couplePlacementInfo[1]) + "(" +couplePlacementInfo[2] + ")" )
+    return [titleName, couplePlacementInfo[0], couplePlacementInfo[1], couplePlacementInfo[2]]
         
 def getDancerCompStats(cid, name, isLead=True, fileName=None):
     pageString = helper.getWebPage(helper.getURL(cid))
@@ -207,11 +219,9 @@ def getDancerCompStats(cid, name, isLead=True, fileName=None):
             if fileName == None:
                 print(placement[0] + "| Place:" + str(placement[1]) +"/"+str(placement[2]) + "(" + placement[3] + ")")
             else:
-                #file.write(placement[0] + "| Place:" + str(placement[1]) +"/"+str(placement[2]) + "(" + placement[3] + ")\n")
                 file.write(placement[0] + "," + str(placement[1]) +","+str(placement[2]) + ","+ placement[3] + "\n")
     if fileName != None:
         file.close()
 
 if __name__ == '__main__':
-    #getDancerCompStats(121, "Emilee Gruszeczki", isLead = False, fileName="emCO.csv")
-    scrapeComp(100, "cfc_nc_s.csv", "Amateur", "Adult", "!Gold", "!Bronze", "!Novice")
+    print("hello")
