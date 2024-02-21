@@ -224,8 +224,4 @@ def getDancerCompStats(cid, name, isLead=True, fileName=None):
         file.close()
 
 if __name__ == '__main__':
-    #scrapeComp(119, "southeastern_gold.csv", "Amateur", "Adult", "Gold")
-    getDancerCompStats(119, "Toni Nelson", False, "toni_reports/toni_se.csv")
-    getDancerCompStats(113, "Toni Nelson", False, "toni_reports/toni_gc.csv")
-    getDancerCompStats(100, "Toni Nelson", False, "toni_reports/toni_cfc.csv")
-    getDancerCompStats(79, "Toni Nelson", False, "toni_reports/toni_hell.csv")
+    print("hello")
