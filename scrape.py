@@ -144,7 +144,7 @@ def getDancerPlacement(cid, eid, name, isLead=True):
         dancerName = name.split()
         searchFirst = "followerfname\\\":\\\"" + dancerName[0]
         searchLast = "followerlname\\\":\\\"" + dancerName[1]
-        if pageString.find() == -1 or pageString.find():
+        if pageString.find(searchLast) == -1 or pageString.find(searchFirst) == -1:
             print("getDancerPlacement(): "+name+" not found for eid=" + str(eid))
             return None
 
@@ -224,4 +224,8 @@ def getDancerCompStats(cid, name, isLead=True, fileName=None):
         file.close()
 
 if __name__ == '__main__':
-    print("hello")
+    #scrapeComp(119, "southeastern_gold.csv", "Amateur", "Adult", "Gold")
+    getDancerCompStats(119, "Toni Nelson", False, "toni_reports/toni_se.csv")
+    getDancerCompStats(113, "Toni Nelson", False, "toni_reports/toni_gc.csv")
+    getDancerCompStats(100, "Toni Nelson", False, "toni_reports/toni_cfc.csv")
+    getDancerCompStats(79, "Toni Nelson", False, "toni_reports/toni_hell.csv")
