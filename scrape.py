@@ -7,8 +7,10 @@ import helper
 import time
 
 
-#TODO: Repurpose this function to add on to the file and expand it
-def scrapeRecentComps(filename):
+#creates a file with the list of recent competitions on the ballroomcompexpress website
+#It will add on to the file. So it is possible to keep information on comps no longer on the recent comps list.
+def scrapeRecentComps():
+    filename = "recentcomps.txt"
     #Open webpage and get string text
     pageString = helper.getWebPage(helper.getURL())
     if type(pageString) != str:
@@ -26,14 +28,37 @@ def scrapeRecentComps(filename):
     #Get comp Information
     compNames = re.findall("<span class=\"label\">.*?</div>", recentCompsList)
     index = 0
-    recentCompFile = open(filename, "w")
-    while index < len(compNames):
-        compNames[index] = re.sub("<br>", "--", compNames[index])
-        compNames[index] = re.sub("<.*?>", "", compNames[index])
-        compInfo = compNames[index].split("--")
-        recentCompFile.write(str(cidList[index]) + ' | ' + compInfo[0].strip() + ' | ' + helper.cleanDate(compInfo[1]).strftime("%x") + ' | ' + compInfo[2] +'\n')
-        index += 1
-    recentCompFile.close()
+    try:
+        #read current file and get list of known cid's
+        f = open(filename,"r")
+        knownCids = []
+        lineNum = 1
+        for line in f:
+            try:
+                cid = int(line[:line.find(' | ')])
+                knownCids.append(cid)
+            except:
+                print(f'scrapeRecentComps(): Failed to capture cid in {filename} on line {lineNum}')
+            lineNum += 1
+        f.close() 
+        recentCompFile = open(filename, "a")
+        while index < len(compNames):
+            compNames[index] = re.sub("<br>", "--", compNames[index])
+            compNames[index] = re.sub("<.*?>", "", compNames[index])
+            compInfo = compNames[index].split("--")
+            if cidList[index] not in knownCids:
+                recentCompFile.write(str(cidList[index]) + ' | ' + compInfo[0].strip() + ' | ' + helper.cleanDate(compInfo[1]).strftime("%x") + ' | ' + compInfo[2] +'\n')
+            index += 1
+        recentCompFile.close()
+    except IOError:
+        recentCompFile = open(filename, "w")
+        while index < len(compNames):
+            compNames[index] = re.sub("<br>", "--", compNames[index])
+            compNames[index] = re.sub("<.*?>", "", compNames[index])
+            compInfo = compNames[index].split("--")
+            recentCompFile.write(str(cidList[index]) + ' | ' + compInfo[0].strip() + ' | ' + helper.cleanDate(compInfo[1]).strftime("%x") + ' | ' + compInfo[2] +'\n')
+            index += 1
+        recentCompFile.close()
 
 #Grabs all the events that match requirements and their eid's so we can traverse the website and check the results of each event
 #args are strings that act as filters. If you don't want something like "Rookie-Vet" add "!Rookie-Vet" as an arg
@@ -45,10 +70,17 @@ def scrapeComp(cid, fileName, *argv):
         print("Error scrapeComp(): " + helper.getURL(cid)+ " failed to open")
         return None
     #Extact useful data
-    eventData = pageString[pageString.find("./results"):pageString.rfind("<!-- Footer -->")]
-    allEvents = re.findall("eid=.*?</a>", eventData)
+    eventData = pageString[pageString.find("<div class=\"clear\"></div>"):pageString.rfind("<!-- Footer -->")]
+    allEvents = re.findall("event-entry .*?\">", eventData)
+    
+    allEIDs = re.findall("eid=.*?\">", eventData, flags=re.ASCII)
     eidList = []
+    listOfEvents = []
+    for eid in allEIDs:
+        eidList.append(int(eid[4:-2]))
     compName = pageString[pageString.find("<h1>") + len("<h1>Results for "):pageString.find("</h1>")]
+    for i in range(0, len(allEvents)):
+        allEvents[i] = helper.getEventData(allEvents[i])
     
     i = 0
     while i < len(allEvents):
@@ -67,20 +99,29 @@ def scrapeComp(cid, fileName, *argv):
                     allEvents.pop(i)
                     i -= 1
                     break
-        if not flag:
-            eid = int(allEvents[i][allEvents[i].find("eid=") + len("eid="): allEvents[i].find('\"')])
-            eidList.append(eid) 
-        i += 1
+        if  flag or allEvents[i] == "": #if allEvents[i] == "" -> That is a team match which is being ignored
+            eidList.pop(i)
+            allEvents.pop(i)
+        else:
+            i += 1
     file = open(fileName, "w")
     print("Writing to File: " + fileName)
     file.write(compName + '\n')
     remaining = len(eidList)
     print("Total Events: " + str(remaining))
+    i = 0
     for eid in eidList:
-        file.write(scrapeEvent(cid, eid).toString())
+        # Add step so we can get the event meta data from the comp page and not the event page
+        eventMetaData = allEvents[i]
+        event = scrapeEvent(cid, eid)
+        listOfEvents.append(classes.Event(eid, eventMetaData[0], eventMetaData[1], eventMetaData[2], eventMetaData[3], event[1], event[0], cid))
+        file.write(listOfEvents[-1].toString())
         remaining -=1
         print(str(eid) + " Captured (" + str(remaining) + " left)")
+        i += 1
     file.close()
+    return listOfEvents
+    # def __init__(self, eid:int, category: str, age: str, level: str, style: str, dances: str, entries: list, cid: int): #Key in dicionary is EID
 
 #There is a format assumption on the name of the event
 # style1 and style2 are two words that makeup the name of the style EX: Int. Latin
@@ -92,7 +133,7 @@ def getCompCid(compName):
     if compName == "":
         print("Error getCompCid(): compName cannot be empty")
         return None
-    file = open("recentComps.txt", "r")
+    file = open("recentcomps.txt", "r")
     fileText = file.read()
     file.close()
     while fileText.find('\n') != -1:
@@ -124,8 +165,7 @@ def scrapeEvent( cid, eid):
         couple = eidToName[key]
         entry = classes.Entry(couple[0], couple[1], results[key][0], results[key][1])
         coupleResults.append(entry)
-    print(titleTokens)
-    return classes.Event(eid, titleTokens[0], titleTokens[1], titleTokens[2], titleTokens[3] + ' ' + titleTokens[4], titleTokens[5],coupleResults, cid)
+    return (coupleResults, titleTokens[-1]) #The last title token is the dances
 
 #TODO: Add the partner as part of the information given about a person's results
 def getDancerPlacement(cid, eid, name, isLead=True):
@@ -165,7 +205,6 @@ def getDancerPlacement(cid, eid, name, isLead=True):
     fName = None
     lName = None
     entrantID = None
-    foundFlag = False
     while entrantIndex != -1:
         entrantID = int(pageString[searchIndex:pageString.find("\\", searchIndex)])
         searchIndex = pageString.find("\\", searchIndex)
@@ -188,7 +227,6 @@ def getDancerPlacement(cid, eid, name, isLead=True):
             searchIndex = endIndex
             lName = pageString[startIndex:endIndex].strip()
         if name == fName + " " + lName:
-            foundFlag = True
             break   
         entrantIndex =  pageString.find("entrantid\\\":\\\"", endIndex)
         searchIndex = entrantIndex + len("entrantid\\\":\\\"")
