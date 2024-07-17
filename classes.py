@@ -15,6 +15,12 @@ class Comp:
         for ev in self.events:
             compList += "  " + ev.title() + '\n'
         return compList
+    
+    def resultsToString(self):
+        result = ""
+        for event in self.events:
+            result += event.toString()
+        return result
 
 class Event:
     #category, age, level, style, dances

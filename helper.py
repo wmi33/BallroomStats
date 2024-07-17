@@ -74,14 +74,15 @@ def cleanDate(webDate: str):
 
 #Used by scrapeEvent() to get dictionary of entrantID's with corresponding lead and follow names
 def getCoupleNames(pageString: str):
-    coupleData = pageString[pageString.find("var dancers = "):pageString.rfind("followeraffiliation")]
+    startOfCoupleData = pageString.find("var dancers = ")
+    coupleData = pageString[startOfCoupleData:pageString.find(");",startOfCoupleData)]
     eidDict = {}
     index = 0
-    eidValues = re.findall(r'entrantid.*?,', coupleData)
-    leaderFnames = re.findall(r'leaderfname.*?,', coupleData)
-    leaderLnames = re.findall(r'leaderlname.*?,', coupleData)
-    followerFnames = re.findall(r'followerfname.*?,', coupleData)
-    followerLnames = re.findall(r'followerlname.*?,', coupleData)
+    eidValues = re.findall('entrantid.*?,', coupleData)
+    leaderFnames = re.findall('leaderfname.*?,', coupleData)
+    leaderLnames = re.findall('leaderlname.*?,', coupleData)
+    followerFnames = re.findall('followerfname.*?,', coupleData)
+    followerLnames = re.findall('followerlname.*?,', coupleData)
     for eid in eidValues:
         intEid = int(eid[eid.find(':') + 3: eid.rfind('\\\"')])
         leaderName = None
@@ -89,7 +90,7 @@ def getCoupleNames(pageString: str):
         try:
             lFname = leaderFnames[index]
             lLname = leaderLnames[index]
-            leaderName += lFname[lFname.find(':') + 3: lFname.rfind('\\\"')].strip() + " " + lLname[lLname.find(':') + 3: lLname.rfind('\\\"')].strip()
+            leaderName = lFname[lFname.find(':') + 3: lFname.rfind('\\\"')].strip() + " " + lLname[lLname.find(':') + 3: lLname.rfind('\\\"')].strip()
         except:
             leaderName = ""
         try:
