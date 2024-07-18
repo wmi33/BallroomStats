@@ -76,13 +76,27 @@ def cleanDate(webDate: str):
 def getCoupleNames(pageString: str):
     startOfCoupleData = pageString.find("var dancers = ")
     coupleData = pageString[startOfCoupleData:pageString.find(");",startOfCoupleData)]
+    startOfEventName = pageString.find("</script><h1>", startOfCoupleData)
+    nameOfEvent = pageString[startOfEventName + len("</script><h1>results for "):pageString.find("</h1>", startOfEventName)].lower()
     eidDict = {}
     index = 0
     eidValues = re.findall('entrantid.*?,', coupleData)
-    leaderFnames = re.findall('leaderfname.*?,', coupleData)
-    leaderLnames = re.findall('leaderlname.*?,', coupleData)
-    followerFnames = re.findall('followerfname.*?,', coupleData)
-    followerLnames = re.findall('followerlname.*?,', coupleData)
+    leaderFnames = None
+    leaderLnames = None
+    followerFnames =None
+    followerLnames = None
+    if nameOfEvent.find("solo") == -1: 
+        leaderFnames = re.findall('leaderfname.*?,', coupleData)
+        leaderLnames = re.findall('leaderlname.*?,', coupleData)
+        followerFnames = re.findall('followerfname.*?,', coupleData)
+        followerLnames = re.findall('followerlname.*?,', coupleData)
+    else:
+        if nameOfEvent.find("follow") != -1: #Follower's solo proficiency event
+            followerFnames = re.findall('fname.*?,', coupleData)
+            followerLnames = re.findall('lname.*?,', coupleData)
+        else:
+            leaderFnames = re.findall('fname.*?,', coupleData)
+            leaderLnames = re.findall('lname.*?,', coupleData)
     for eid in eidValues:
         intEid = int(eid[eid.find(':') + 3: eid.rfind('\\\"')])
         leaderName = None

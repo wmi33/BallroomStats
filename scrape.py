@@ -4,13 +4,12 @@
 import re
 import classes
 import helper
-import time
-
+import datetime
 
 #creates a file with the list of recent competitions on the ballroomcompexpress website
 #It will add on to the file. So it is possible to keep information on comps no longer on the recent comps list.
 def scrapeRecentComps():
-    filename = "recentcomps.txt"
+    filename = "recentcomps.csv"
     #Open webpage and get string text
     pageString = helper.getWebPage(helper.getURL())
     if type(pageString) != str:
@@ -28,17 +27,22 @@ def scrapeRecentComps():
     #Get comp Information
     compNames = re.findall("<span class=\"label\">.*?</div>", recentCompsList)
     index = 0
+    listOfComps = []
     try:
         #read current file and get list of known cid's
         f = open(filename,"r")
         knownCids = []
         lineNum = 1
         for line in f:
-            try:
-                cid = int(line[:line.find(' | ')])
-                knownCids.append(cid)
-            except:
-                print(f'scrapeRecentComps(): Failed to capture cid in {filename} on line {lineNum}')
+            if lineNum != 1: #Skip the headers of the columns
+                try:
+                    values = line.split(',')
+                    cid = int(values[0])
+                    knownCids.append(cid) # datetime.datetime(int(data[2]), monthToInt(data[0]), int(data[1]))
+                    dateParts = values[2].split('/')
+                    listOfComps.append(classes.Comp(cid, values[1], datetime.datetime(int(dateParts[1]), int(dateParts[0]), int(dateParts[2])), values[3], values[4]))
+                except:
+                    print(f'scrapeRecentComps(): Failed to capture cid in {filename} on line {lineNum}')
             lineNum += 1
         f.close() 
         recentCompFile = open(filename, "a")
@@ -46,19 +50,25 @@ def scrapeRecentComps():
             compNames[index] = re.sub("<br>", "--", compNames[index])
             compNames[index] = re.sub("<.*?>", "", compNames[index])
             compInfo = compNames[index].split("--")
+            cityState = compInfo[2].split(", ")
             if cidList[index] not in knownCids:
-                recentCompFile.write(str(cidList[index]) + ' | ' + compInfo[0].strip() + ' | ' + helper.cleanDate(compInfo[1]).strftime("%x") + ' | ' + compInfo[2] +'\n')
+                recentCompFile.write(str(cidList[index]) + ',' + compInfo[0].strip() + ',' + helper.cleanDate(compInfo[1]).strftime("%x") + ',' + cityState[0] + ',' + cityState[1] + '\n')
+                listOfComps.append(classes.Comp(cidList[index], compInfo[0].strip(), helper.cleanDate(compInfo[1]), cityState[0], cityState[1]))
             index += 1
         recentCompFile.close()
     except IOError:
         recentCompFile = open(filename, "w")
+        recentCompFile.write("cid,comp_name,date,city,state\n")
         while index < len(compNames):
             compNames[index] = re.sub("<br>", "--", compNames[index])
             compNames[index] = re.sub("<.*?>", "", compNames[index])
             compInfo = compNames[index].split("--")
-            recentCompFile.write(str(cidList[index]) + ' | ' + compInfo[0].strip() + ' | ' + helper.cleanDate(compInfo[1]).strftime("%x") + ' | ' + compInfo[2] +'\n')
+            cityState = compInfo[2].split(", ")
+            recentCompFile.write(str(cidList[index]) + ',' + compInfo[0].strip() + ',' + helper.cleanDate(compInfo[1]).strftime("%x") + ',' + cityState[0] + ',' + cityState[1] +'\n')
+            listOfComps.append(classes.Comp(cidList[index], compInfo[0].strip(), helper.cleanDate(compInfo[1]), cityState[0], cityState[1]))
             index += 1
         recentCompFile.close()
+    return listOfComps
 
 #Grabs all the events that match requirements and their eid's so we can traverse the website and check the results of each event
 #args are strings that act as filters. If you don't want something like "Rookie-Vet" add "!Rookie-Vet" as an arg
@@ -126,6 +136,7 @@ def scrapeComp(cid, fileName, *argv):
 #There is a format assumption on the name of the event
 # style1 and style2 are two words that makeup the name of the style EX: Int. Latin
 #Amateur <age> <level> <style1> <style2> <dance> 
+#TODO: This function is essentially useless. Fix with some fuzzy string matching
 def getCompCid(compName):
     if type(compName) != str:
         print("Error getCompCid(): compName must be a str")
@@ -133,7 +144,7 @@ def getCompCid(compName):
     if compName == "":
         print("Error getCompCid(): compName cannot be empty")
         return None
-    file = open("recentcomps.txt", "r")
+    file = open("recentcomps.csv", "r")
     fileText = file.read()
     file.close()
     while fileText.find('\n') != -1:
@@ -144,7 +155,7 @@ def getCompCid(compName):
             return int(data[0])
     #TODO: Add functionality that if the name cannot be found to update the comp file with new comps
     
-def scrapeEvent( cid, eid):
+def scrapeEvent( cid: int, eid: int):
     #open and get webpage
     pageString = helper.getWebPage(helper.getURL(cid, eid))
     if type(pageString) != str:
@@ -163,9 +174,9 @@ def scrapeEvent( cid, eid):
     #Creating entries for event object
     for key in results.keys():
         couple = eidToName[key]
-        entry = classes.Entry(couple[0], couple[1], results[key][0], results[key][1])
+        entry = classes.Entry(key, couple[0], couple[1], results[key][0], results[key][1], eid)
         coupleResults.append(entry)
-    return (coupleResults, titleTokens[-1]) #The last title token is the dances
+    return (coupleResults, titleTokens[-1]) #The last title token is the dances (list of classes.Entry, str)
 
 #TODO: Add the partner as part of the information given about a person's results
 def getDancerPlacement(cid, eid, name, isLead=True):
@@ -251,7 +262,6 @@ def getDancerCompStats(cid, name, isLead=True, fileName=None):
         print(name + "'s Results at " + compName)
     for event in allEvents:
         eid = int(event[event.find("eid=") + len("eid="): event.find('\"')])
-        time.sleep(.25) #Slowing down requests to be safe from overloading website and getting ip banned
         placement = getDancerPlacement(cid, eid, name, isLead)
         if placement != None:
             if fileName == None:

@@ -1,26 +1,14 @@
 import datetime
 class Comp:
-    def __init__(self, cid: int, name: str, date: datetime.datetime, location: str, events: list): #Key in dictionary is CID
+    def __init__(self, cid: int, name: str, date: datetime.datetime, city: str, state: str): #Key in dictionary is CID
         self.name = name
         self.date = date
-        self.location = location
+        self.state = state
+        self.city = city
         self.cid = cid
-        self.events = events
 
     def toString(self):
-        return str(self.cid) + ' | ' + self.name + ' | ' + self.date.strftime("%x") + ' | ' + self.location +'\n'
-    
-    def listEvents(self):
-        compList = self.toString
-        for ev in self.events:
-            compList += "  " + ev.title() + '\n'
-        return compList
-    
-    def resultsToString(self):
-        result = ""
-        for event in self.events:
-            result += event.toString()
-        return result
+        return str(self.cid) + ',' + self.name + ',' + self.date.strftime("%x") + ',' + self.city + ',' + self.state
 
 class Event:
     #category, age, level, style, dances
@@ -45,13 +33,15 @@ class Event:
         return result
 
 class Entry:
-    def __init__(self, lName: int, fName: int, placement: int, cut: str):
+    def __init__(self, entrantId:int, lName: str, fName: str, placement: int, cut: str, eid: int):
+        self.entrantId = entrantId
         self.fName = fName #Follow's Name
         self.lName = lName #Lead's Name
         self.placement = placement
         self.cut = cut
+        self.eid = eid
     def toString(self):
-        return str(self.placement) + "," + self.lName + "," + self.fName  + "," + self.cut 
+        return str(self.placement) + "," + self.lName + "," + self.fName  + "," + self.cut
 
 class Dancer:
     def __init__(self, fname: str, lname: str, location: str): #Key in dictionary is AID
