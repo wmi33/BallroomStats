@@ -6,14 +6,67 @@ import classes
 import helper
 import datetime
 
+#These are all the key value pairs for dance information in BallroomCompExpress
+age = {1: "Adult", 2: "Senior I", 3: "Senior II", 4: "Senior III", 5: "Senior IV",
+            6: None, 7: "Pre-Teen", 8: "Pre-Teen II", 9: "Junior I", 10: "Junior II",
+            11: "Youth", 12: "Under 21", 13: "Senior V", 14: "Open", 15: "Adult A1",
+            16: "Adult A2", 17: None, 18: "Adult B1", 19: "Adult B3", 20: "Adult B2",
+            21: "Adult C1", 22: "Adult C2", 23: "Adult C3", 24: "Adult D1", 25: "Adult D2",
+            26: "Adult D3", 27: "Adult A", 28: "Adult B", 29: "Adult C", 30: "Adult D",
+            31: "Adult", 32: "All Ages", 33: "Teddy-Bear"
+    }
+level = {1: "Newcomer", 2: "Bronze", 3: "Silver", 4: "Gold", 5: "Novice",
+        6: "Pre-Champ", 7: "Championship", 8: "Syllabus", 9: "Open", 10: "Pre-Bronze",
+        11: "Intermediate Bronze", 12: "Full Bronze", 13: "Open Bronze", 14: "Advanced Bronze", 15: "Pre-Silver",
+        16: "Intermediate Silver", 17: "Full Silver", 18: "Open Silver", 19: "Advanced Silver", 20: "Pre-Gold",
+        21: "Intermediate Gold", 22: "Full Gold", 23: "Open Gold", 24: "Advanced Gold", 25: "Open Scholarship",
+        26: "Master of Syllabus", 27: "Closed Syllabus", 28: "Open Syllabus"
+}
+category = {1: "Professional", 2: "Amateur", 3: "Pro/Am Leaders", 4: "T/S Leaders", 5: "Solo Leaders",
+        6: "Solo Followers", 7: None, 8: None, 9: "Switch-Role", 10: "Mixed Proficiency Leaders",
+        11: "Rookie-Vet", 12: "Pro/Am Followers", 13: "T/S Followers", 14: "Mixed Proficiency Followers", 15: "WDSF",
+}
+style = {
+    1: "International Standard", 2: "International Latin", 3: "International", 4: "American Smooth", 5: "American Rhythm",
+    6: "American", 7: None, 8: "Club", 9: "Country"
+}
+
+#The dates on the website have ranges and commas that need to be taken out to convert to date objects
+def cleanDate(webDate: str): 
+    formattedDate = re.sub("-.*?,", "", webDate)
+    formattedDate = formattedDate.replace(',', '')
+    data = formattedDate.split()
+    finalDate = datetime.datetime(int(data[2]), helper.monthToInt(data[0]), int(data[1]))
+    return finalDate
+
+#test function to work with div data which will help reimplement scrapeEvent
+#><div class="event-entry category3 age5 level15 style5 special1"><a href="./results.php?cid=115&eid=6780">
+def getEventData(eventEntryString: str):
+    if isinstance(eventEntryString, str) == False:
+        print("getDances() paramaeter must be a string with the event name. EX: \"Amateur Adult Silver W/T/F")
+        return None
+    values = eventEntryString.split()
+    return [category[int(values[1][len("category"):])],  age[int(values[2][len("age"):])], level[int(values[3][len("level"):])], style[int(values[4][len("style"):])]]
+
+def getURL(cid=None, eid=None):
+    baseURL = "http://ballroomcompexpress.com"
+    if cid == None:
+        return baseURL
+    elif(eid == None):
+        return baseURL + "/results.php?cid=" + str(cid)
+    else:
+        return baseURL + "/results.php?cid=" + str(cid) + "&eid=" + str(eid)
+
+#def scrapeBallroomCompExpress()
+
 #creates a file with the list of recent competitions on the ballroomcompexpress website
 #It will add on to the file. So it is possible to keep information on comps no longer on the recent comps list.
 def scrapeRecentComps():
     filename = "recentcomps.csv"
     #Open webpage and get string text
-    pageString = helper.getWebPage(helper.getURL())
+    pageString = helper.getWebPage(getURL())
     if type(pageString) != str:
-        print("Error scrapeRecentComps(): " + helper.getURL()+ " failed to open")
+        print("Error scrapeRecentComps(): " + getURL()+ " failed to open")
         return None
     #Get all the text involving only the comps that have already occurred
     startIndex = pageString.find("<h2>Recent Comps</h2>") + len("<h2>Recent Comps</h2>")
@@ -52,8 +105,8 @@ def scrapeRecentComps():
             compInfo = compNames[index].split("--")
             cityState = compInfo[2].split(", ")
             if cidList[index] not in knownCids:
-                recentCompFile.write(str(cidList[index]) + ',' + compInfo[0].strip() + ',' + helper.cleanDate(compInfo[1]).strftime("%x") + ',' + cityState[0] + ',' + cityState[1] + '\n')
-                listOfComps.append(classes.Comp(cidList[index], compInfo[0].strip(), helper.cleanDate(compInfo[1]), cityState[0], cityState[1]))
+                recentCompFile.write(str(cidList[index]) + ',' + compInfo[0].strip() + ',' + cleanDate(compInfo[1]).strftime("%x") + ',' + cityState[0] + ',' + cityState[1] + '\n')
+                listOfComps.append(classes.Comp(cidList[index], compInfo[0].strip(), cleanDate(compInfo[1]), cityState[0], cityState[1]))
             index += 1
         recentCompFile.close()
     except IOError:
@@ -64,8 +117,8 @@ def scrapeRecentComps():
             compNames[index] = re.sub("<.*?>", "", compNames[index])
             compInfo = compNames[index].split("--")
             cityState = compInfo[2].split(", ")
-            recentCompFile.write(str(cidList[index]) + ',' + compInfo[0].strip() + ',' + helper.cleanDate(compInfo[1]).strftime("%x") + ',' + cityState[0] + ',' + cityState[1] +'\n')
-            listOfComps.append(classes.Comp(cidList[index], compInfo[0].strip(), helper.cleanDate(compInfo[1]), cityState[0], cityState[1]))
+            recentCompFile.write(str(cidList[index]) + ',' + compInfo[0].strip() + ',' + cleanDate(compInfo[1]).strftime("%x") + ',' + cityState[0] + ',' + cityState[1] +'\n')
+            listOfComps.append(classes.Comp(cidList[index], compInfo[0].strip(), cleanDate(compInfo[1]), cityState[0], cityState[1]))
             index += 1
         recentCompFile.close()
     return listOfComps
@@ -75,9 +128,9 @@ def scrapeRecentComps():
 
 def scrapeComp(cid, fileName, *argv):
     #open webpage
-    pageString = helper.getWebPage(helper.getURL(cid))
+    pageString = helper.getWebPage(getURL(cid))
     if type(pageString) != str:
-        print("Error scrapeComp(): " + helper.getURL(cid)+ " failed to open")
+        print("Error scrapeComp(): " + getURL(cid)+ " failed to open")
         return None
     #Extact useful data
     eventData = pageString[pageString.find("<div class=\"clear\"></div>"):pageString.rfind("<!-- Footer -->")]
@@ -90,7 +143,7 @@ def scrapeComp(cid, fileName, *argv):
         eidList.append(int(eid[4:-2]))
     compName = pageString[pageString.find("<h1>") + len("<h1>Results for "):pageString.find("</h1>")]
     for i in range(0, len(allEvents)):
-        allEvents[i] = helper.getEventData(allEvents[i])
+        allEvents[i] = getEventData(allEvents[i])
     
     i = 0
     while i < len(allEvents):
@@ -157,9 +210,9 @@ def getCompCid(compName):
     
 def scrapeEvent( cid: int, eid: int):
     #open and get webpage
-    pageString = helper.getWebPage(helper.getURL(cid, eid))
+    pageString = helper.getWebPage(getURL(cid, eid))
     if type(pageString) != str:
-        print("Error scrapeEvent(): " + helper.getURL(cid, eid)+ " failed to open")
+        print("Error scrapeEvent(): " + getURL(cid, eid)+ " failed to open")
         return None
     #Cutting excess information
     startIndex = pageString.find("Results for ") + len("Results for ")
@@ -168,8 +221,8 @@ def scrapeEvent( cid: int, eid: int):
     titleName = pageString[startIndex:endIndex]
     titleTokens = titleName.split()
     #Getting results
-    results = helper.getCoupleOrder(pageString)
-    eidToName = helper.getCoupleNames(pageString)
+    results = getCoupleOrder(pageString)
+    eidToName = getCoupleNames(pageString)
     coupleResults = []
     #Creating entries for event object
     for key in results.keys():
@@ -178,25 +231,104 @@ def scrapeEvent( cid: int, eid: int):
         coupleResults.append(entry)
     return (coupleResults, titleTokens[-1]) #The last title token is the dances (list of classes.Entry, str)
 
+#Used by scrapeEvent() to get dictionary of entrantID's with corresponding lead and follow names
+def getCoupleNames(pageString: str):
+    startOfCoupleData = pageString.find("var dancers = ")
+    coupleData = pageString[startOfCoupleData:pageString.find(");",startOfCoupleData)]
+    startOfEventName = pageString.find("</script><h1>", startOfCoupleData)
+    nameOfEvent = pageString[startOfEventName + len("</script><h1>results for "):pageString.find("</h1>", startOfEventName)].lower()
+    eidDict = {}
+    index = 0
+    eidValues = re.findall('entrantid.*?,', coupleData)
+    leaderFnames = None
+    leaderLnames = None
+    followerFnames =None
+    followerLnames = None
+    if nameOfEvent.find("solo") == -1: 
+        leaderFnames = re.findall('leaderfname.*?,', coupleData)
+        leaderLnames = re.findall('leaderlname.*?,', coupleData)
+        followerFnames = re.findall('followerfname.*?,', coupleData)
+        followerLnames = re.findall('followerlname.*?,', coupleData)
+    else:
+        if nameOfEvent.find("follow") != -1: #Follower's solo proficiency event
+            followerFnames = re.findall('fname.*?,', coupleData)
+            followerLnames = re.findall('lname.*?,', coupleData)
+        else:
+            leaderFnames = re.findall('fname.*?,', coupleData)
+            leaderLnames = re.findall('lname.*?,', coupleData)
+    for eid in eidValues:
+        intEid = int(eid[eid.find(':') + 3: eid.rfind('\\\"')])
+        leaderName = None
+        followerName = None
+        try:
+            lFname = leaderFnames[index]
+            lLname = leaderLnames[index]
+            leaderName = lFname[lFname.find(':') + 3: lFname.rfind('\\\"')].strip() + " " + lLname[lLname.find(':') + 3: lLname.rfind('\\\"')].strip()
+        except:
+            leaderName = ""
+        try:
+            fFname = followerFnames[index]
+            fLname = followerLnames[index]
+            followerName = fFname[fFname.find(':') + 3: fFname.rfind('\\\"')].strip() + " " + fLname[fLname.find(':') + 3: fLname.rfind('\\\"')].strip()
+        except:
+            followerName = ""
+        eidDict[intEid] = [leaderName, followerName]
+        index += 1
+    return eidDict
+
+#Used by scapeEvent() to get dictionary of entrantID: [placement, cut]
+def getCoupleOrder(pageString: str):
+    #cut is the name for the subevents -> final, semi, quarter, ...
+    data = pageString[pageString.find("partnershiporder"):pageString.find("Final")]
+    cutNames = ["Final"]
+    designations = re.findall("designation\":\".*?\"", data)
+    index = len(designations) - 1
+    while index >= 0:
+        currDes = designations[index]
+        currDes = currDes[currDes.find(":\"") + 2:currDes.rfind("\"")]
+        cutNames.append(currDes)
+        index -= 1
+    orders = re.findall('partnershiporder.*?]', data)
+    index = 0
+    rank = {}
+    placement = 1
+    for order in orders:
+        orders[index] = order[order.find("[") + 1:order.find("]")]
+        index+=1
+    
+    cutNum = len(orders) - 1
+    cutsChecked = 0
+    while cutNum >= 0:
+        index = 0
+        cut = orders[cutNum]
+        idList = cut.split(',')
+        while index < len(idList):
+            if int(idList[index]) not in rank:
+                rank[int(idList[index])] = [placement, cutNames[cutsChecked]]
+                placement += 1
+                
+            index += 1
+        cutNum -= 1
+        cutsChecked += 1
+    return rank
+
 #TODO: Add the partner as part of the information given about a person's results
 def getDancerPlacement(cid, eid, name, isLead=True):
-    pageString = helper.getWebPage(helper.getURL(cid, eid))
+    pageString = helper.getWebPage(getURL(cid, eid))
     if type(pageString) != str:
-        print("Error getDancerPlacement(): " + helper.getURL(cid, eid)+ " failed to open")
+        print("Error getDancerPlacement(): " + getURL(cid, eid)+ " failed to open")
         return None
     if isLead:
         dancerName = name.split()
         searchFirst = "leaderfname\\\":\\\"" + dancerName[0]
         searchLast = "leaderlname\\\":\\\"" + dancerName[1]
         if pageString.find(searchLast) ==  -1 or pageString.find(searchFirst) == -1:
-            print("getDancerPlacement(): "+name+" not found for eid=" + str(eid))
             return None
     else:
         dancerName = name.split()
         searchFirst = "followerfname\\\":\\\"" + dancerName[0]
         searchLast = "followerlname\\\":\\\"" + dancerName[1]
         if pageString.find(searchLast) == -1 or pageString.find(searchFirst) == -1:
-            print("getDancerPlacement(): "+name+" not found for eid=" + str(eid))
             return None
 
     #Cutting excess information
@@ -241,14 +373,54 @@ def getDancerPlacement(cid, eid, name, isLead=True):
             break   
         entrantIndex =  pageString.find("entrantid\\\":\\\"", endIndex)
         searchIndex = entrantIndex + len("entrantid\\\":\\\"")
-    couplePlacementInfo = helper.findPlacement(pageString, entrantID)
+    couplePlacementInfo = None
+
+    data = pageString[pageString.find("partnershiporder"):pageString.find("Final")]
+    cutNames = ["Final"]
+    designations = re.findall("designation\":\".*?\"", data)
+    index = len(designations) - 1
+    while index >= 0:
+        currDes = designations[index]
+        currDes = currDes[currDes.find(":\"") + 2:currDes.rfind("\"")]
+        cutNames.append(currDes)
+        index -= 1
+    orders = re.findall('partnershiporder.*?]', data)
+    index = 0
+    rank = {}
+    placement = 1
+    for order in orders:
+        orders[index] = order[order.find("[") + 1:order.find("]")]
+        index+=1
+
+    cutNum = len(orders) - 1
+    cutsChecked = 0
+    couplePlacement = -1
+    numCouples = len(orders[0].split(','))
+    coupleCut = ''
+    while cutNum >= 0:
+        index = 0
+        cut = orders[cutNum]
+        idList = cut.split(',')
+        while index < len(idList):
+            if int(idList[index]) == entrantID:
+                couplePlacement = placement
+                coupleCut = cutNames[cutsChecked]
+                couplePlacementInfo = [couplePlacement, numCouples, coupleCut]
+            if int(idList[index]) not in rank:
+                rank[int(idList[index])] = 1
+                placement += 1         
+            index += 1
+        cutNum -= 1
+        cutsChecked += 1
+
     print(titleName + " " + str(couplePlacementInfo[0]) + "/" +str(couplePlacementInfo[1]) + "(" +couplePlacementInfo[2] + ")" )
     return [titleName, couplePlacementInfo[0], couplePlacementInfo[1], couplePlacementInfo[2]]
+
         
 def getDancerCompStats(cid, name, isLead=True, fileName=None):
-    pageString = helper.getWebPage(helper.getURL(cid))
+    pageString = helper.getWebPage(getURL(cid))
     if type(pageString) != str:
-        print("Error getDancerCompStats(): " + helper.getURL(cid)+ " failed to open")
+        print("Error getDancerCompStats(): " + getURL(cid)+ " failed to open")
         return None
     eventData = pageString[pageString.find("./results"):pageString.rfind("<!-- Footer -->")]
     allEvents = re.findall("eid=.*?</a>", eventData)
@@ -272,4 +444,4 @@ def getDancerCompStats(cid, name, isLead=True, fileName=None):
         file.close()
 
 if __name__ == '__main__':
-    print("hello")
+    print('hello')
