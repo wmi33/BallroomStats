@@ -1,14 +1,25 @@
-from urllib.request import urlopen
+from urllib.request import urlopen, Request
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
 
 
-def getWebPage(url: str):
-    try:
-        response = urlopen(url)
-    except Exception as ex:
-        return ex
+def getWebPage(url: str, headers=None, data=None) -> str:
+    if headers == None:
+        headers = {}
+    if data == None:
+        request = Request(url, data, headers)
     else:
-        body = response.read().decode("utf-8")
-    return body
+        url_encoded_data = urlencode(data).encode('utf-8')
+        request = Request(url, url_encoded_data, headers)
+    try:
+        response = urlopen(request)
+    except HTTPError as error:
+         print(error.status, error.reason)
+    except URLError as error:
+        print(error.reason)
+    else:
+        #http.client.HTTPResponse
+        return (response.read().decode("utf-8"), response.getheaders())
 def monthToInt(month: str):
     lowerMonth = month.lower()
     months = {'january':1,

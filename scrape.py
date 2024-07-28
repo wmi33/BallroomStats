@@ -64,7 +64,7 @@ def getURL(cid=None, eid=None):
 def scrapeRecentComps():
     filename = "recentcomps.csv"
     #Open webpage and get string text
-    pageString = helper.getWebPage(getURL())
+    pageString = helper.getWebPage(getURL())[0]
     if type(pageString) != str:
         print("Error scrapeRecentComps(): " + getURL()+ " failed to open")
         return None
@@ -128,7 +128,7 @@ def scrapeRecentComps():
 
 def scrapeComp(cid, fileName, *argv):
     #open webpage
-    pageString = helper.getWebPage(getURL(cid))
+    pageString = helper.getWebPage(getURL(cid))[0]
     if type(pageString) != str:
         print("Error scrapeComp(): " + getURL(cid)+ " failed to open")
         return None
@@ -210,7 +210,7 @@ def getCompCid(compName):
     
 def scrapeEvent( cid: int, eid: int):
     #open and get webpage
-    pageString = helper.getWebPage(getURL(cid, eid))
+    pageString = helper.getWebPage(getURL(cid, eid))[0]
     if type(pageString) != str:
         print("Error scrapeEvent(): " + getURL(cid, eid)+ " failed to open")
         return None
@@ -314,7 +314,7 @@ def getCoupleOrder(pageString: str):
 
 #TODO: Add the partner as part of the information given about a person's results
 def getDancerPlacement(cid, eid, name, isLead=True):
-    pageString = helper.getWebPage(getURL(cid, eid))
+    pageString = helper.getWebPage(getURL(cid, eid))[0]
     if type(pageString) != str:
         print("Error getDancerPlacement(): " + getURL(cid, eid)+ " failed to open")
         return None
@@ -418,7 +418,7 @@ def getDancerPlacement(cid, eid, name, isLead=True):
 
         
 def getDancerCompStats(cid, name, isLead=True, fileName=None):
-    pageString = helper.getWebPage(getURL(cid))
+    pageString = helper.getWebPage(getURL(cid))[0]
     if type(pageString) != str:
         print("Error getDancerCompStats(): " + getURL(cid)+ " failed to open")
         return None
@@ -444,4 +444,4 @@ def getDancerCompStats(cid, name, isLead=True, fileName=None):
         file.close()
 
 if __name__ == '__main__':
-    print('hello')
+    scrapeComp(113, "gamecock.txt")
